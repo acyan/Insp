@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+
 <?import java.lang.*?>
-<?import java.util.*?>
+<?import javafx.collections.*?>
+<?import javafx.geometry.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.control.cell.*?>
 <?import javafx.scene.layout.*?>
 
 <AnchorPane id="AnchorPane" prefHeight="500.0" prefWidth="700.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="insp.FXMLDocumentController">
@@ -14,7 +18,7 @@
           <Menu mnemonicParsing="false" text="Файл">
             <items>
               <MenuItem mnemonicParsing="false" text="Close" />
-              <MenuItem fx:id="settingsItem" mnemonicParsing="false" onAction="#handleButtonAction" text="Настройки" />
+              <MenuItem fx:id="settingsItem" mnemonicParsing="false" text="Настройки" />
             </items>
           </Menu>
           <Menu mnemonicParsing="false" text="Настройки" />
@@ -24,10 +28,18 @@
         <items>
           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
                <children>
-                  <TableView layoutX="8.0" layoutY="47.0" prefHeight="419.0" prefWidth="320.0">
+                  <TableView fx:id="tableView" layoutX="8.0" layoutY="47.0" prefHeight="419.0" prefWidth="320.0">
                     <columns>
-                      <TableColumn fx:id="tableView" prefWidth="186.0" text="Сайт" />
-                      <TableColumn prefWidth="133.0" text="Статус" />
+                        <TableColumn prefWidth="100.0" text="Сайт" fx:id="name">
+                          <cellValueFactory>
+                            <PropertyValueFactory property="name" />
+                          </cellValueFactory>
+                        </TableColumn>
+                      <TableColumn prefWidth="133.0" text="Статус" fx:id="status">
+                          <cellValueFactory>
+                            <PropertyValueFactory property="status" />
+                          </cellValueFactory>
+                        </TableColumn>
                     </columns>
                   </TableView>
                   <Button layoutX="89.0" layoutY="14.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="161.0" text="Добавить сайт" />

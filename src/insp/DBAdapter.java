@@ -8,8 +8,10 @@ package insp;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -17,9 +19,17 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.scene.control.Button;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.TableView;
 
 /**
  *
@@ -30,9 +40,17 @@ public class DBAdapter {
     private Future databaseSetup;
     private static final Logger logger = Logger.getLogger(Insp.class.getName());
 
-    public DBAdapter(ExecutorService databaseService, Future databaseSetup) {
+    public DBAdapter() {
         this.databaseService = Executors.newFixedThreadPool(1, new DatabaseThreadFactory());
-        this.databaseSetup = databaseSetup;
+        DBSetupTask setup = new DBSetupTask();
+        this.databaseSetup = databaseService.submit(setup);
+        try {
+            this.databaseSetup.get();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(DBAdapter.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(DBAdapter.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     
@@ -43,6 +61,19 @@ public class DBAdapter {
       logger.info("Getting a database connection");
       Class.forName("org.h2.Driver");
       return DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
+    }
+    
+    public void fetchSites(TableView<Site> tableView) throws InterruptedException, ExecutionException{
+      final FetchNamesTask fetchNamesTask = new FetchNamesTask();
+      databaseService.submit(fetchNamesTask).get();
+      fetchNamesTask.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+
+          @Override
+          public void handle(WorkerStateEvent event) {
+            ObservableList<Site> s= fetchNamesTask.getValue();
+            tableView.setItems(s);
+          }
+      });
     }
   
     static class DatabaseThreadFactory implements ThreadFactory {
@@ -66,7 +97,7 @@ public class DBAdapter {
       }
     }
     
-    class DBSetupClass<Void> extends DBTask<Void>{
+    class DBSetupTask<Void> extends DBTask<Void>{
 
         @Override
         protected Void call() throws Exception {
@@ -107,7 +138,36 @@ public class DBAdapter {
             st.execute("INSERT INTO sites(name,change_freq) SELECT * FROM(SELECT 'http://google.com','true') AS tmp WHERE NOT EXISTS(SELECT name FROM sites WHERE name = 'http://google.com') LIMIT 1");
             st.execute("INSERT INTO sites(name,change_freq) SELECT * FROM(SELECT 'http://yandex.ru','true') AS tmp WHERE NOT EXISTS(SELECT name FROM sites WHERE name = 'http://yandex.ru') LIMIT 1");
           logger.info("Populated database");
-        }        
+        } 
+        
+
     }
 
+  class FetchNamesTask extends DBTask<ObservableList<Site>> {
+    @Override protected ObservableList<Site> call() throws Exception {
+      try (Connection con = getConnection()) {
+          ObservableList<Site> result = fetchNames(con);
+        return result;
+      }
+    }
+    
+    private ObservableList<Site> fetchNames(Connection con) throws SQLException {
+      logger.info("Fetching names from database");
+      ObservableList<Site> sites = FXCollections.observableArrayList();
+ 
+      Statement st = con.createStatement();      
+      ResultSet result = st.executeQuery("select * from sites");
+      
+        while (result.next()) {
+            String name = result.getString("NAME");
+            Boolean change = result.getBoolean("change_freq");
+            sites.add(new Site(name, change));
+            System.out.println(result.getString("NAME")+" "+ result.getBoolean("change_freq"));
+        }
+ 
+      logger.info("Found " + sites.size() + " names");
+ 
+      return sites;
+    }
+  }
 }
